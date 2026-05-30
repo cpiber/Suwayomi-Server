@@ -517,8 +517,6 @@ fun applicationSetup() {
     // start DownloadManager and restore + resume downloads
     DownloadManager.restoreAndResumeDownloads()
 
-    // asynchronously initialize CEF
-    GlobalScope.launch {
-        CEFManager.init()
-    }
+    // Have CEF
+    CEFManager.init()
 }

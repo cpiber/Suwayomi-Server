@@ -75,30 +75,35 @@ object CEFManager {
     private val cefDir by lazy { Path(applicationDirs.dataRoot) / "bin/kcef" }
     private val releaseFile by lazy { cefDir / "release" }
 
-    fun init() =
-        scope.launch {
-            serverConfig.subscribeTo(serverConfig.kcefEnabled, CEFManager::initAsync, ignoreInitialValue = false)
+    fun init() {
+        serverConfig.subscribeTo(serverConfig.kcefEnabled, { v ->
+            logger.warn { "change $v" }
+            scope.launch { initAsync(v) }
+        }, ignoreInitialValue = false)
 
-            Runtime.getRuntime().addShutdownHook(
-                thread(start = false) {
-                    CefHelper.cefApp.value.getOrNull()?.let {
-                        logger.debug { "Shutting down CEF" }
-                        it.dispose()
-                        logger.debug { "CEF shutdown complete" }
-                    }
-                },
-            )
-        }
+        Runtime.getRuntime().addShutdownHook(
+            thread(start = false) {
+                CefHelper.cefApp.value.getOrNull()?.let {
+                    logger.debug { "Shutting down CEF" }
+                    it.dispose()
+                    logger.debug { "CEF shutdown complete" }
+                }
+            },
+        )
+    }
 
-    private suspend fun initAsync(): Unit =
+    private suspend fun initAsync(enable: Boolean): Unit =
         try {
+            logger.warn { "initAsync: $enable" }
             CefHelper.cefApp.value = Result.success(null)
+            logger.warn { "initAsync: start" }
 
-            if (!serverConfig.kcefEnabled.value) {
+            if (!enable) {
                 throw CefException("CEF is disabled")
             }
 
             System.loadLibrary("jawt")
+            logger.warn { "initAsync: load jawt done" }
 
             if (serverConfig.debugLogsEnabled.value) System.setProperty("jcef.log.verbose", "true")
 
@@ -110,6 +115,7 @@ object CEFManager {
                 }
                 logger.info { "Downloaded CEF successfully!" }
             }
+            logger.warn { "initAsync: install check done" }
 
             val app =
                 if (CefApp.getInstanceIfAny() == null) {
